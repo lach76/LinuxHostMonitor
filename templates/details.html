@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Private Cloud - VM Dashboard</title>
+
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/static/css/sb-admin.css" rel="stylesheet">
+
+    <!-- Morris Charts CSS -->
+    <link href="/static/css/plugins/morris.css" rel="stylesheet">
+	<style>
+		td.table_data { font-size: 80%; }
+	</style>
+  </head>
+  <body>
+
+    <div class="container-fluid">
+	<div class="row">
+		<div class="col-md-12">
+			<div class="page-header">
+				<h3>
+					Private Cloud  <small>Virtual Machine Usage Dashboard - {{ overall.ipaddr }}</small>
+				</h3>
+			</div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-12">
+            <a href="{{ overall.homeurl }}"><button type="button" class="btn btn-info btn-xs">Home</button></a>
+            <a href="{{ overall.prevurl }}"><button type="button" class="btn btn-primary btn-xs">&lt;&lt;</button></a>
+            <a href="{{ overall.cururl }}"><button type="button" class="btn btn-primary btn-xs">{{ overall.ipaddr }}</button></a>
+            <a href="{{ overall.nexturl }}"><button type="button" class="btn btn-primary btn-xs">&gt;&gt;</button></a>
+            <a href="{{ overall.prevtimeurl }}"><button type="button" class="btn btn-info btn-xs">{{ overall.prevtime }}</button></a>
+            <a href="{{ overall.curtimeurl }}"><button type="button" class="btn btn-success btn-xs">{{ overall.curtime }}</button></a>
+            <a href="{{ overall.nexttimeurl }}"><button type="button" class="btn btn-info btn-xs">{{ overall.nexttime }}</button></a>
+            <h4>
+                <span class="label label-primary">{{ overall.hostname }}</span>
+                <span class="label label-primary">{{ overall.osname }}</span>
+                <span class="label label-primary">{{ overall.kernel }}</span>
+                <span class="label label-info">{{ overall.core }} cores</span>
+                <span class="label label-info">{{ overall.mem }}</span>
+                <span class="label label-info">{{ overall.disk }}</span>
+                <span class="label label-default">{{ overall.uptime }}</span>
+                <span class="label label-danger">{{ overall.admin }}</span>
+            </h4>
+			<br>
+            <div class="row">
+            {% for data in summary %}
+                <div class="col-md-3">
+                    <div class="panel {{ data.level }}">    <!-- panel-primary panel-green, panel-red, panel-yellow -->
+                        <div class="panel-heading">
+                            <div class="row">
+                                <div class="col-xs-12 text-right">
+                                    <div class="huge">{{ data.value }}</div>
+                                    <div>{{ data.title }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+			<div class="row">
+				<div class="col-md-12">
+					<h4><span class="label label-default">Last Login Users - Summary</span></h4>
+					<table class="table table-hover table-condensed table-bordered">
+						<thead>
+							<tr>
+                                {% for data in last_usage_title %}
+                                <th>{{ data }}</th>
+                                {% endfor %}
+							</tr>
+						</thead>
+						<tbody>
+                            {% for data in last_usage_summary %}
+                            <tr class="{{ data.level }}">
+                                {% for item in data.list %}
+                                <td class="table_data">{{ item }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+						</tbody>
+					</table>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-md-12">
+					<h4><span class="label label-default">CPU Usage Top 20s</span></h4>
+					<table class="table table-hover table-condensed table-bordered">
+						<thead>
+							<tr>
+                                {% for data in cpu_usage_title %}
+                                <th>{{ data }}</th>
+                                {% endfor %}
+							</tr>
+						</thead>
+						<tbody>
+                            {% for data in cpu_usage %}
+                            <tr class="{{ data.level }}">
+                                {% for item in data.list %}
+                                <td class="table_data">{{ item }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+						</tbody>
+					</table>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-md-12">
+					<h4><span class="label label-default">Last Login Users - Detail</span></h4>
+					<table class="table table-hover table-condensed table-bordered">
+						<thead>
+							<tr>
+                                {% for data in last_usage_title %}
+                                <th>{{ data }}</th>
+                                {% endfor %}
+							</tr>
+						</thead>
+						<tbody>
+                            {% for data in last_usage %}
+                            <tr class="{{ data.level }}">
+                                {% for item in data.list %}
+                                <td class="table_data">{{ item }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+            <!--
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title"><i class="fa fa-bar-chart-o fa-fw"></i> Area Chart</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div id="morris-area-chart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-lg-4">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title"><i class="fa fa-long-arrow-right fa-fw"></i> Donut Chart</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div id="morris-donut-chart"></div>
+                            <div class="text-right">
+                                <a href="#">View Details <i class="fa fa-arrow-circle-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            -->
+			</div>
+		</div>
+	</div>
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <script src="/static/js/scripts.js"></script>
+
+    <!-- Morris Charts JavaScript -->
+    <script src="/static/js/plugins/morris/raphael.min.js"></script>
+    <script src="/static/js/plugins/morris/morris.min.js"></script>
+    <script src="/static/js/plugins/morris/morris-data.js"></script>
+
+  </body>
+</html>

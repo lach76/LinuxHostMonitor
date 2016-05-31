@@ -238,7 +238,7 @@ def index():
                     userlist.append(userinfo[0])
 
         if len(userlist) <= 1:
-            level = 'primary'
+            level = 'info'
         if len(userlist) > 3:
             users = ';'.join(userlist[:3]) + '...(%d)' % len(userlist)
         else:

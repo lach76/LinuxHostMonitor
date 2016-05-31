@@ -1,8 +1,8 @@
 import os
-import sys
-import time
+from datetime import timedelta
 import multiprocessing
 import platform
+
 
 ######################################################################
 #  Gather System Informations....
@@ -101,13 +101,26 @@ def gather_traffics(cliShell, request):
 
 def gather_platform(cliShell):
     try:
-        osname = " ".join(platform.linux_distribution())
-        uname = platform.uname()
+        pipe = cliShell.runCommand('cat /etc/*-release')
+        data = pipe.read()
+        lines = data.splitlines()
+        dist_id = ''
+        dist_release = ''
+        dist_codename = ''
+        for line in lines:
+            items = line.split('=')
+            if items[0] == 'DISTRIB_ID':
+                dist_id = items[1]
+            if items[0] == 'DISTRIB_RELEASE':
+                dist_release = items[1]
+            if items[0] == 'DISTRIB_CODENAME':
+                dist_codename = items[1]
 
-        if osname == '  ':
-            osname = uname[0]
+        pipe = cliShell.runCommand('uname -a')
+        unames = pipe.read().split(' ')
+        osname = '%s %s %s' % (dist_id, dist_release, dist_codename)
 
-        data = {'osname': osname, 'hostname': uname[1], 'kernel': uname[2]}
+        data = {'osname': osname + '(%s)' % unames[len(unames) - 4], 'hostname': unames[1], 'kernel': unames[2]}
 
     except Exception as err:
         data = str(err)
@@ -169,7 +182,7 @@ def gather_memory(cliShell):
         percent = (100 - ((freemem * 100) / allmem))
         usage = (allmem - freemem)
 
-        mem_usage = {'usage': usage, 'buffers': buffers, 'cached': cachedmem, 'free': freemem, 'percent': percent}
+        mem_usage = {'total':allmem, 'usage': usage, 'buffers': buffers, 'cached': cachedmem, 'free': freemem, 'percent': percent}
 
         data = mem_usage
 
@@ -182,7 +195,6 @@ def gather_cpu_usage(cliShell):
     try:
         pipe = cliShell.runCommand("ps aux --sort -%cpu,-rss")
         data = pipe.read().strip().split('\n')
-
         usage = [i.split(None, 10) for i in data]
         del usage[0]
 
@@ -196,10 +208,29 @@ def gather_cpu_usage(cliShell):
 
         total_free = ((100 * int(gather_cpus(cliShell)['cpus'])) - float(total_usage))
 
-        cpu_used = {'free': total_free, 'used': float(total_usage), 'all': usage}
+        cpu_used = {'free': total_free, 'used': float(total_usage), 'top_20': usage[:20]}
 
         data = cpu_used
 
+    except Exception as err:
+        data = str(err)
+
+    return data
+
+def gather_last_used(cliShell):
+    try:
+        pipe = cliShell.runCommand("last")
+        data = pipe.read().strip().split('\n')
+        usage = []
+        for i in data:
+            temp = i.split(None, 10)
+            try:
+                datalist = [temp[0], temp[1], temp[2], ' '.join(temp[3:])]
+                usage.append(datalist)
+            except:
+                pass
+
+        data = usage
     except Exception as err:
         data = str(err)
 

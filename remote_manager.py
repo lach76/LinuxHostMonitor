@@ -6,9 +6,16 @@ import multiprocessing
 import platform
 from datetime import timedelta
 from optparse import OptionParser
-import pxssh
+from pexpect import pxssh
 from system_control_cmd import *
+import urllib2
 
+def internet_on(ipaddr):
+    try:
+        response=urllib2.urlopen('http://74.125.228.100',timeout=1)
+        return True
+    except urllib2.URLError as err: pass
+    return False
 ###################################################
 # File Operation Emulator
 class EmulateFileData():
@@ -48,6 +55,11 @@ class RemoteControl():
         return False
 
     def connectSSH(self):
+        res = os.system('ping -c 1 ' + self.ipaddr)
+        if res != 0:
+            print 'Host is not reachable'
+            return None
+
         cli = pxssh.pxssh()
         try:
             res = cli.login(self.ipaddr, self.userid, self.userpw, login_timeout = 30)
@@ -59,7 +71,7 @@ class RemoteControl():
         return cli
 
     def disconnectSSH(self):
-        if self.client:
+        if self.client is not None:
             self.client.logout()
 
     def sendline(self, commandline):
@@ -85,6 +97,10 @@ class RemoteControl():
         self.prompt()
 
         return EmulateFileData(self.before, skip_line)
+
+    @property
+    def AdminUser(self):
+        return self.userid
 
     @property
     def IPAddr(self):

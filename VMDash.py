@@ -21,6 +21,8 @@ def get_messages():
     if flask.request.headers['Content-Type'] == 'application/json':
         jsonData = flask.request.json
         ServerIPAddr = jsonData['myipaddr']
+        if not ServerCurrentStatistics.has_key(ServerIPAddr):
+            ServerCurrentStatistics[ServerIPAddr] = []
         ServerCurrentStatistics[ServerIPAddr].append(jsonData)
         if len(ServerCurrentStatistics[ServerIPAddr]) > KEEP_STATISTICS:
             del ServerCurrentStatistics[ServerIPAddr][0]

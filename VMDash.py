@@ -42,6 +42,41 @@ def GetRangePanelType(value):
 def convertTimeFormat(curtime):
     return '%04d-%02d-%02d %02d:%02d' % (curtime.tm_year, curtime.tm_mon, curtime.tm_mday, curtime.tm_hour, curtime.tm_min)
 
+class ServerDate:
+    def __init__(self, integer_time):
+        self.datetime = time.localtime(integer_time)
+
+    def date(self):
+        return (self.datetime.tm_year, self.datetime.tm_mon, self.datetime.tm_mday)
+
+    def readable(self):
+        return '%02d-%02d' % (self.datetime.tm_mon, self.datetime.tm_mday)
+
+    def issamedate(self, integer_time):
+        testtime = time.localtime(integer_time)
+        return (self.datetime.tm_year == testtime.tm_year) and (self.datetime.tm_mon == testtime.tm_mon) and (self.datetime.tm_mday == testtime.tm_mday)
+
+def GetPeakUserListWithServer(ServerInfoList):
+    result = {}
+
+    # return [{'date':XXXX, 'users':[]}, {}, ...]
+    for ServerInfo in ServerInfoList:
+        if ServerInfo.has_key('update_time'):
+            dateobj = ServerDate(ServerInfo['update_time'])
+
+            result_key = dateobj.readable()
+            if not result.has_key(result_key):
+                result[result_key] = []
+
+            admin_user = ServerInfo['admin_user']
+            for userinfo in ServerInfo['users']:
+                if admin_user != userinfo[0]:
+                    if userinfo[0] not in result[result_key]:
+                        result[result_key].append(userinfo[0])
+
+    return result
+    # result = {'datekey':[], 'datekey':[], ...}
+
 @VMDash.route('/details/<ipaddr>')
 @VMDash.route('/details/<ipaddr>/<listindex>')
 def details(ipaddr, listindex = None):
@@ -54,14 +89,21 @@ def details(ipaddr, listindex = None):
     last_usage_title = []
     last_usage = []
     last_usage_summary = []
+    peak_user_list = []
+    peak_user_title = []
     if ServerCurrentStatistics.has_key(ipaddr):
         if listindex is None:
             listindex = len(ServerCurrentStatistics[ipaddr]) - 1
         listindex = int(listindex)
         ServerInfo = ServerCurrentStatistics[ipaddr][listindex]
-        hostname = ServerInfo['platform']['hostname']
-        osname = ServerInfo['platform']['osname']
-        kernel = ServerInfo['platform']['kernel']
+        try:
+            hostname = ServerInfo['platform']['hostname']
+            osname = ServerInfo['platform']['osname']
+            kernel = ServerInfo['platform']['kernel']
+        except:
+            hostname = 'Unknown'
+            osname = 'Unknown'
+            kernel = 'Unknown'
 
         for diskinfo in ServerInfo['disks']:
             try:
@@ -101,12 +143,14 @@ def details(ipaddr, listindex = None):
 
         overall = {'ipaddr' : ipaddr, 'hostname':hostname, 'osname':osname, 'kernel':kernel,
                    'uptime':ServerInfo['uptime'], 'core':str(ServerInfo['cpus']['cpus']),
-                   'mem':'%dMB' % ServerInfo['memory']['total'],
                    'disk':total_disk, 'admin':ServerInfo['admin_user'],
                    'cururl':cur_url, 'prevurl':prev_url, 'nexturl':next_url, 'homeurl':'/',
                    'curtimeurl':curtimeurl, 'prevtimeurl':prevtimeurl, 'nexttimeurl':nexttimeurl,
                    'curtime':curtime, 'prevtime': prevtime, 'nexttime' : nexttime}
-
+        try:
+            overall['mem'] = '%dMB' % ServerInfo['memory']['total']
+        except:
+            overall['mem'] = '0MB'
         # CPU Load
         #import pprint
         #pprint.pprint(ServerInfo)
@@ -117,6 +161,28 @@ def details(ipaddr, listindex = None):
         item['value'] = str(cpu_usage) + '%'
         item['level'] = GetRangePanelType(cpu_usage)
         summary.append(item)
+
+        # Peak User
+        peak_user_title = ['Date', 'Number', 'Users']
+        user_info_daily = GetPeakUserListWithServer(ServerCurrentStatistics[ipaddr])
+        daily_keys = user_info_daily.keys()
+        daily_keys.sort()
+        all_users = []
+        for date_key in daily_keys:
+            item = {}
+            item['level'] = 'success'
+            user_list = []
+            for user in user_info_daily[date_key]:
+                user_list.append(user + '@humaxdigital.com')
+
+            all_users = list(set(all_users) | set(user_list))
+            item['list'] = [date_key, len(user_info_daily[date_key]), '; '.join(user_list)]
+            peak_user_list.append(item)
+
+        item = {}
+        item['level'] = 'danger'
+        item['list'] = ['ALL', len(all_users), '; '.join(all_users)]
+        peak_user_list.insert(0, item)
 
         # User
         connected_user = 0
@@ -197,7 +263,8 @@ def details(ipaddr, listindex = None):
 
     return flask.render_template('details.html', overall = overall, summary = summary,
                                  cpu_usage_title = cpu_usage_title, cpu_usage = cpu_usage,
-                                 last_usage_title = last_usage_title, last_usage = last_usage, last_usage_summary = last_usage_summary)
+                                 last_usage_title = last_usage_title, last_usage = last_usage, last_usage_summary = last_usage_summary,
+                                 peak_user_title = peak_user_title, peak_user_list = peak_user_list)
 
 @VMDash.route('/')
 @VMDash.route('/index')
@@ -216,42 +283,49 @@ def index():
 
         level = 'active'
         ipaddr = serverIP
-        hostname = all_data['platform']['hostname']
-        cpu = str(all_data['cpu_usage']['used']) + '% - ' + str(all_data['cpus']['cpus']) + ' cores'
-        mem = '%dMB(%d%%)' % (all_data['memory']['total'], all_data['memory']['percent'])
-        for diskinfo in all_data['disks']:
-            if len(diskinfo) < 6:
+        try:
+            hostname = all_data['platform']['hostname']
+
+            cpu = str(all_data['cpu_usage']['used']) + '% - ' + str(all_data['cpus']['cpus']) + ' cores'
+            mem = '%dMB(%d%%)' % (all_data['memory']['total'], all_data['memory']['percent'])
+   
+            for diskinfo in all_data['disks']:
+                if len(diskinfo) < 6:
+                    disk = 'Undefined'
+                    continue
+                if diskinfo[5] == '/':
+                    disk = "%s/%s(%s)" % (diskinfo[2], diskinfo[1], diskinfo[4])
+
+                    percent = int(diskinfo[4][:-1])
+                    if percent > 85:
+                        level = 'danger'
+                    break
+            else:
                 disk = 'Undefined'
-                continue
-            if diskinfo[5] == '/':
-                disk = "%s/%s(%s)" % (diskinfo[2], diskinfo[1], diskinfo[4])
 
-                percent = int(diskinfo[4][:-1])
-                if percent > 85:
-                    level = 'danger'
-                break
-        else:
-            disk = 'Undefined'
+            userlist = []
+            for userinfo in all_data['users']:
+                if userinfo[0] not in userlist:
+                    if all_data['admin_user'] != userinfo[0]:
+                        userlist.append(userinfo[0])
 
-        userlist = []
-        for userinfo in all_data['users']:
-            if userinfo[0] not in userlist:
-                if all_data['admin_user'] != userinfo[0]:
-                    userlist.append(userinfo[0])
+            if len(userlist) <= 1:
+                level = 'info'
+            if len(userlist) > 3:
+                users = ';'.join(userlist[:3]) + '...(%d)' % len(userlist)
+            else:
+                users = ';'.join(userlist)
 
-        if len(userlist) <= 1:
-            level = 'info'
-        if len(userlist) > 3:
-            users = ';'.join(userlist[:3]) + '...(%d)' % len(userlist)
-        else:
-            users = ';'.join(userlist)
+            dist = all_data['platform']['osname']
 
-        dist = all_data['platform']['osname']
-
-        updated_time = convertTimeFormat(time.localtime(all_data['update_time']))
-        item = {'list':[ipaddr, hostname, cpu, mem, disk, dist, users, updated_time]}
-        item['level'] = level
-        item['url'] = '/details/%s/%d' % (ipaddr, len(ServerCurrentStatistics[serverIP]) - 1)
+            updated_time = convertTimeFormat(time.localtime(all_data['update_time']))
+            item = {'list':[ipaddr, hostname, cpu, mem, disk, dist, users, updated_time]}
+            item['level'] = level
+            item['url'] = '/details/%s/%d' % (ipaddr, len(ServerCurrentStatistics[serverIP]) - 1)
+        except:
+            item = {'list':[ipaddr, 'Unknown', 'Unknown', 'Unknown', 'Unknown', 'Unknown', 'Unknown', 'Unknown']}
+            item['url'] = '/details/%s/%d' % (ipaddr, len(ServerCurrentStatistics[serverIP]) - 1)
+            
         data.append(item)
 
     return flask.render_template('index.html', table_headers = headers, table_data = data)
